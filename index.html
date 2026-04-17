@@ -27,23 +27,8 @@
       dailyCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT1pZASjdZr6YpG8bREsg7P8u7FZ0HvJwgb-U2kDIF9jhqBUo3J-7WcLiVzkF3eTFKc2TFWQmHNNNN9/pub?gid=1863839864&single=true&output=csv'
     };
 
-    const sampleWeekly = [
-      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '1', campaign_name: '신규고객 구매 전환', objective: '구매', spend: 8240000, impressions: 215000, reach: 154000, clicks: 4210, inline_link_clicks: 3390, purchase_count: 64, purchase_value: 28110000, purchase_roas: 3.41, cpa_purchase: 128750 },
-      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '2', campaign_name: '리타겟팅 전환', objective: '구매', spend: 4910000, impressions: 109000, reach: 68400, clicks: 2360, inline_link_clicks: 1820, purchase_count: 53, purchase_value: 20230000, purchase_roas: 4.12, cpa_purchase: 92642 },
-      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '3', campaign_name: '퓨어타치온 관심사 확장', objective: '구매', spend: 5320000, impressions: 187000, reach: 131000, clicks: 2980, inline_link_clicks: 2140, purchase_count: 29, purchase_value: 11600000, purchase_roas: 2.18, cpa_purchase: 183448 },
-      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '4', campaign_name: '멜라라인 수면 테스트', objective: '트래픽', spend: 2760000, impressions: 144000, reach: 99200, clicks: 2490, inline_link_clicks: 2110, purchase_count: 11, purchase_value: 3420000, purchase_roas: 1.24, cpa_purchase: 250909 },
-      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '5', campaign_name: '올레샷 리마케팅', objective: '구매', spend: 1464420, impressions: 100655, reach: 81200, clicks: 1820, inline_link_clicks: 1390, purchase_count: 10, purchase_value: 4320000, purchase_roas: 2.95, cpa_purchase: 146442 }
-    ];
-
-    const sampleDaily = [
-      { date: '2026-04-11', spend: 2800000, purchase_value: 7100000, purchase_count: 21, ctr: 1.31, cpa_purchase: 133333 },
-      { date: '2026-04-12', spend: 3150000, purchase_value: 8890000, purchase_count: 24, ctr: 1.38, cpa_purchase: 131250 },
-      { date: '2026-04-13', spend: 2960000, purchase_value: 8020000, purchase_count: 19, ctr: 1.29, cpa_purchase: 155789 },
-      { date: '2026-04-14', spend: 3320000, purchase_value: 9460000, purchase_count: 22, ctr: 1.41, cpa_purchase: 150909 },
-      { date: '2026-04-15', spend: 3480000, purchase_value: 10450000, purchase_count: 25, ctr: 1.46, cpa_purchase: 139200 },
-      { date: '2026-04-16', spend: 3920000, purchase_value: 11800000, purchase_count: 28, ctr: 1.52, cpa_purchase: 140000 },
-      { date: '2026-04-17', spend: 3264420, purchase_value: 9400000, purchase_count: 21, ctr: 1.42, cpa_purchase: 155448 }
-    ];
+    const sampleWeekly = [];
+    const sampleDaily = [];
 
     function parseCsv(text) {
       const cleaned = text.replace(/^\ufeff/, '');
@@ -184,8 +169,8 @@
     }
 
     function App() {
-      const [weeklyRows, setWeeklyRows] = React.useState(sampleWeekly);
-      const [dailyRows, setDailyRows] = React.useState(sampleDaily);
+      const [weeklyRows, setWeeklyRows] = React.useState([]);
+      const [dailyRows, setDailyRows] = React.useState([]);
       const [loading, setLoading] = React.useState(false);
       const [error, setError] = React.useState('');
 
@@ -202,7 +187,7 @@
             setWeeklyRows(parseCsv(weeklyText));
             setDailyRows(parseCsv(dailyText));
           } catch (e) {
-            setError('실데이터를 불러오지 못해 샘플 데이터로 표시 중입니다.');
+            setError('실데이터를 불러오지 못했습니다.');
           } finally {
             setLoading(false);
           }
