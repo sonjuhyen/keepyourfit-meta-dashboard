@@ -118,11 +118,11 @@
     }
 
     function buildKpis(weeklyRows, dailyRows) {
-      const totalSpend = weeklyRows.reduce((sum, row) => sum + toNumber(row.spend), 0);
-      const totalPurchases = weeklyRows.reduce((sum, row) => sum + toNumber(row.purchase_count), 0);
-      const totalPurchaseValue = weeklyRows.reduce((sum, row) => sum + toNumber(row.purchase_value), 0);
-      const totalClicks = weeklyRows.reduce((sum, row) => sum + toNumber(row.inline_link_clicks), 0);
-      const totalImpressions = weeklyRows.reduce((sum, row) => sum + toNumber(row.impressions), 0);
+      const totalSpend = weeklyRows.reduce((sum, row) => sum + toNumber(row.spend || row.spend_sum), 0);
+      const totalPurchases = weeklyRows.reduce((sum, row) => sum + toNumber(row.purchase_count || row.purchase_count_sum), 0);
+      const totalPurchaseValue = weeklyRows.reduce((sum, row) => sum + toNumber(row.purchase_value || row.purchase_value_sum), 0);
+      const totalClicks = weeklyRows.reduce((sum, row) => sum + toNumber(row.inline_link_clicks || row.inline_link_clicks_sum), 0);
+      const totalImpressions = weeklyRows.reduce((sum, row) => sum + toNumber(row.impressions || row.impressions_sum), 0);
       const roas = totalSpend ? totalPurchaseValue / totalSpend : 0;
       const cpa = totalPurchases ? totalSpend / totalPurchases : 0;
       const ctr = totalImpressions ? (totalClicks / totalImpressions) * 100 : 0;
