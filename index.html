@@ -100,6 +100,10 @@
       return Number(value || 0).toFixed(digits);
     }
 
+    function formatRoasPercent(value) {
+      return formatRate((Number(value || 0) * 100), 0) + '%';
+    }
+
     function getStatus(row) {
       const roas = toNumber(row.purchase_roas);
       const cpa = toNumber(row.cpa_purchase);
@@ -126,7 +130,7 @@
         { label: '최근 7일 광고비', value: formatCurrency(totalSpend), change: '실데이터', positive: true },
         { label: '최근 7일 구매수', value: formatNumber(totalPurchases) + '건', change: '실데이터', positive: true },
         { label: '최근 7일 구매금액', value: formatCurrency(totalPurchaseValue), change: '실데이터', positive: true },
-        { label: '최근 7일 ROAS', value: formatRate(roas), change: '실데이터', positive: true },
+        { label: '최근 7일 ROAS', value: formatRoasPercent(roas), change: '실데이터', positive: true },
         { label: '최근 7일 CPA', value: formatCurrency(cpa), change: '실데이터', positive: true },
         { label: '최근 7일 CTR', value: formatRate(ctr) + '%', change: '실데이터', positive: true }
       ];
@@ -212,7 +216,7 @@
           name: row.campaign_name,
           objective: row.objective,
           spend: formatCurrency(toNumber(row.spend)),
-          roas: formatRate(toNumber(row.purchase_roas)),
+          roas: formatRoasPercent(toNumber(row.purchase_roas)),
           cpa: formatCurrency(toNumber(row.cpa_purchase)),
           status: getStatus(row)
         }))
