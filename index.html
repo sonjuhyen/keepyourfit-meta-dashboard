@@ -13,6 +13,7 @@
 
   <script>
     const WEEKLY_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT1pZASjdZr6YpG8bREsg7P8u7FZ0HvJwgb-U2kDIF9jhqBUo3J-7WcLiVzkF3eTFKc2TFWQmHNNNN9/pub?gid=1954711197&single=true&output=csv';
+    const DAILY_TOTAL_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT1pZASjdZr6YpG8bREsg7P8u7FZ0HvJwgb-U2kDIF9jhqBUo3J-7WcLiVzkF3eTFKc2TFWQmHNNNN9/pub?gid=1863839864&single=true&output=csv';
 
     function splitCsvLine(line) {
       const result = [];
@@ -21,12 +22,8 @@
       for (let i = 0; i < line.length; i++) {
         const char = line[i];
         if (char === '"') {
-          if (inQuotes && line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
+          if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+          else { inQuotes = !inQuotes; }
         } else if (char === ',' && !inQuotes) {
           result.push(current);
           current = '';
@@ -46,9 +43,7 @@
       return lines.slice(1).map(line => {
         const values = splitCsvLine(line);
         const row = {};
-        headers.forEach((header, index) => {
-          row[header] = values[index] || '';
-        });
+        headers.forEach((header, index) => { row[header] = values[index] || ''; });
         return row;
       });
     }
@@ -58,17 +53,9 @@
       return Number.isFinite(x) ? x : 0;
     }
 
-    function fmtNum(v) {
-      return new Intl.NumberFormat('ko-KR').format(Math.round(v || 0));
-    }
-
-    function fmtWon(v) {
-      return fmtNum(v) + '원';
-    }
-
-    function fmtRoas(v) {
-      return Math.round((v || 0) * 100) + '%';
-    }
+    function fmtNum(v) { return new Intl.NumberFormat('ko-KR').format(Math.round(v || 0)); }
+    function fmtWon(v) { return fmtNum(v) + '원'; }
+    function fmtRoas(v) { return Math.round((v || 0) * 100) + '%'; }
 
     function statusOf(row) {
       const roas = n(row.ROAS_calc || row.purchase_roas);
@@ -91,20 +78,32 @@
       return '<span class="inline-flex rounded-full border px-3 py-1 text-xs font-semibold ' + (map[status] || map['점검 필요']) + '">' + status + '</span>';
     }
 
+    function buildSparkBars(rows, key, colorClass) {
+      if (!rows.length) return '';
+      const max = Math.max.apply(null, rows.map(r => n(r[key])));
+      return rows.map(r => {
+        const h = max ? Math.max(12, Math.round((n(r[key]) / max) * 140)) : 12;
+        return '<div class="flex-1 flex flex-col justify-end items-center gap-2"><div class="w-full rounded-t-lg ' + colorClass + '" style="height:' + h + 'px"></div><div class="text-[11px] text-slate-400">' + (r.date || '').slice(5).replace('-', '/') + '</div></div>';
+      }).join('');
+    }
+
     async function boot() {
       const app = document.getElementById('app');
       try {
-        const res = await fetch(WEEKLY_CSV);
-        const text = await res.text();
-        const rows = parseCsv(text);
+        const [weeklyRes, dailyRes] = await Promise.all([fetch(WEEKLY_CSV), fetch(DAILY_TOTAL_CSV)]);
+        const [weeklyText, dailyText] = await Promise.all([weeklyRes.text(), dailyRes.text()]);
+        const weeklyRows = parseCsv(weeklyText);
+        const dailyRows = parseCsv(dailyText);
 
-        const totalSpend = rows.reduce((s, r) => s + n(r.spend || r.spend_sum), 0);
-        const totalPurchase = rows.reduce((s, r) => s + n(r.purchase_count || r.purchase_count_sum), 0);
-        const totalValue = rows.reduce((s, r) => s + n(r.purchase_value || r.purchase_value_sum), 0);
+        const totalSpend = weeklyRows.reduce((s, r) => s + n(r.spend || r.spend_sum), 0);
+        const totalPurchase = weeklyRows.reduce((s, r) => s + n(r.purchase_count || r.purchase_count_sum), 0);
+        const totalValue = weeklyRows.reduce((s, r) => s + n(r.purchase_value || r.purchase_value_sum), 0);
         const roas = totalSpend ? totalValue / totalSpend : 0;
         const cpa = totalPurchase ? totalSpend / totalPurchase : 0;
+        const weekStart = weeklyRows[0] ? weeklyRows[0].week_start : '';
+        const weekEnd = weeklyRows[0] ? weeklyRows[0].week_end : '';
 
-        const sorted = rows.map(r => ({
+        const sorted = weeklyRows.map(r => ({
           campaign_name: r.campaign_name,
           objective: r.objective,
           spend: n(r.spend || r.spend_sum),
@@ -112,6 +111,10 @@
           cpa: n(r.CPA_calc || r.CPA_purchase),
           status: statusOf(r)
         })).sort((a, b) => b.roas - a.roas);
+
+        const topBoost = sorted.filter(r => r.status === '증액 후보').slice(0, 2);
+        const needCheck = sorted.filter(r => r.status === '점검 필요').slice(0, 2);
+        const stopList = sorted.filter(r => r.status === '중단 후보').slice(0, 2);
 
         const cards = [
           ['최근 7일 광고비', fmtWon(totalSpend)],
@@ -137,30 +140,80 @@
           </tr>
         `).join('');
 
+        function actionList(list, emptyText) {
+          if (!list.length) return '<div class="text-slate-400 text-sm">' + emptyText + '</div>';
+          return list.map(item => '<div class="rounded-2xl bg-white/5 p-4 text-sm"><div class="font-semibold text-white">' + item.campaign_name + '</div><div class="text-slate-300 mt-2">ROAS ' + fmtRoas(item.roas) + ' / CPA ' + fmtWon(item.cpa) + '</div></div>').join('');
+        }
+
         app.innerHTML = `
           <div class="mb-8">
             <div class="text-emerald-300 text-sm font-semibold">킵유어핏 퍼포먼스 운영판</div>
             <h1 class="text-3xl font-bold mt-2">메타 광고 웹 대시보드</h1>
-            <p class="text-slate-300 mt-2">실데이터 카드와 캠페인 표 복구 버전입니다.</p>
+            <p class="text-slate-300 mt-2">실데이터 기준 복구 버전</p>
+            <p class="text-slate-400 mt-2 text-sm">기준 기간: ${weekStart} ~ ${weekEnd}</p>
           </div>
 
           <div class="grid md:grid-cols-5 gap-4">${cards}</div>
 
-          <div class="mt-8 rounded-3xl border border-white/10 bg-slate-900 p-6 overflow-x-auto">
-            <div class="text-xl font-bold mb-4">캠페인 성과</div>
-            <table class="min-w-full text-sm text-left">
-              <thead class="bg-white/5">
-                <tr>
-                  <th class="px-4 py-3">캠페인명</th>
-                  <th class="px-4 py-3">목적</th>
-                  <th class="px-4 py-3">광고비</th>
-                  <th class="px-4 py-3">ROAS</th>
-                  <th class="px-4 py-3">CPA</th>
-                  <th class="px-4 py-3">상태</th>
-                </tr>
-              </thead>
-              <tbody>${tableRows}</tbody>
-            </table>
+          <div class="mt-8 grid lg:grid-cols-2 gap-6">
+            <div class="rounded-3xl border border-white/10 bg-slate-900 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <div class="text-xl font-bold">최근 7일 광고비 추이</div>
+                <div class="text-sm text-emerald-300">실데이터</div>
+              </div>
+              <div class="h-48 flex items-end gap-2">${buildSparkBars(dailyRows, 'spend_sum', 'bg-emerald-400')}</div>
+            </div>
+
+            <div class="rounded-3xl border border-white/10 bg-slate-900 p-6">
+              <div class="flex items-center justify-between mb-4">
+                <div class="text-xl font-bold">최근 7일 ROAS 추이</div>
+                <div class="text-sm text-sky-300">실데이터</div>
+              </div>
+              <div class="h-48 flex items-end gap-2">${buildSparkBars(dailyRows, 'roas_calc', 'bg-sky-400')}</div>
+            </div>
+          </div>
+
+          <div class="mt-8 grid lg:grid-cols-3 gap-6">
+            <div class="rounded-3xl border border-emerald-400/20 bg-slate-900 p-6">
+              <div class="text-lg font-bold text-emerald-300 mb-4">증액 후보</div>
+              ${actionList(topBoost, '현재 증액 후보 없음')}
+            </div>
+            <div class="rounded-3xl border border-amber-400/20 bg-slate-900 p-6">
+              <div class="text-lg font-bold text-amber-300 mb-4">점검 필요</div>
+              ${actionList(needCheck, '현재 점검 대상 없음')}
+            </div>
+            <div class="rounded-3xl border border-rose-400/20 bg-slate-900 p-6">
+              <div class="text-lg font-bold text-rose-300 mb-4">중단 후보</div>
+              ${actionList(stopList, '현재 중단 후보 없음')}
+            </div>
+          </div>
+
+          <div class="mt-8 grid xl:grid-cols-[1.6fr,0.9fr] gap-6">
+            <div class="rounded-3xl border border-white/10 bg-slate-900 p-6 overflow-x-auto">
+              <div class="text-xl font-bold mb-4">캠페인 성과</div>
+              <table class="min-w-full text-sm text-left">
+                <thead class="bg-white/5">
+                  <tr>
+                    <th class="px-4 py-3">캠페인명</th>
+                    <th class="px-4 py-3">목적</th>
+                    <th class="px-4 py-3">광고비</th>
+                    <th class="px-4 py-3">ROAS</th>
+                    <th class="px-4 py-3">CPA</th>
+                    <th class="px-4 py-3">상태</th>
+                  </tr>
+                </thead>
+                <tbody>${tableRows}</tbody>
+              </table>
+            </div>
+
+            <div class="rounded-3xl border border-white/10 bg-slate-900 p-6">
+              <div class="text-xl font-bold mb-4">운영 메모</div>
+              <div class="space-y-4 text-sm text-slate-300">
+                <div class="rounded-2xl bg-white/5 p-4">최근 7일 기준으로 실데이터를 불러와 카드, 차트, 표, 액션 박스를 복구한 상태입니다.</div>
+                <div class="rounded-2xl bg-white/5 p-4">다음 단계는 메타 관리자 실제값과 숫자 차이를 다시 검증하고 필요한 계산 로직만 보정하는 것입니다.</div>
+                <div class="rounded-2xl bg-white/5 p-4">이후 상품별, 소재별, 키워드별 기능을 붙이면 됩니다.</div>
+              </div>
+            </div>
           </div>
         `;
       } catch (e) {
