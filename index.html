@@ -24,7 +24,7 @@
   <script type="text/babel">
     const SHEET_CONFIG = {
       weeklyCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT1pZASjdZr6YpG8bREsg7P8u7FZ0HvJwgb-U2kDIF9jhqBUo3J-7WcLiVzkF3eTFKc2TFWQmHNNNN9/pub?gid=1954711197&single=true&output=csv',
-      dailyCsvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT1pZASjdZr6YpG8bREsg7P8u7FZ0HvJwgb-U2kDIF9jhqBUo3J-7WcLiVzkF3eTFKc2TFWQmHNNNN9/pub?gid=0&single=true&output=csv'
+      dailyCsvUrl: ''
     };
 
     const sampleWeekly = [
@@ -139,10 +139,10 @@
 
     function buildTrend(dailyRows) {
       return dailyRows.map(row => ({
-        date: row.date || row.week_start || '',
-        spend: toNumber(row.spend),
-        purchaseValue: toNumber(row.purchase_value),
-        roas: toNumber(row.spend) ? toNumber(row.purchase_value) / toNumber(row.spend) : 0
+        date: row.date || '',
+        spend: toNumber(row.spend_sum || row.spend),
+        purchaseValue: toNumber(row.purchase_value_sum || row.purchase_value),
+        roas: toNumber(row.roas_calc || 0)
       }));
     }
 
@@ -275,7 +275,7 @@
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold">최근 7일 광고비 추이</h2>
-                    <p className="mt-1 text-sm text-slate-400">일별 spend 기준 실데이터 추이입니다.</p>
+                    <p className="mt-1 text-sm text-slate-400">daily_total_summary 기준 일자별 합산 실데이터 추이입니다.</p>
                   </div>
                   <div className="rounded-2xl bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300">실데이터</div>
                 </div>
@@ -291,7 +291,7 @@
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold">최근 7일 ROAS 추이</h2>
-                    <p className="mt-1 text-sm text-slate-400">일별 purchase_value / spend 기준입니다.</p>
+                    <p className="mt-1 text-sm text-slate-400">daily_total_summary 기준 일자별 ROAS 재계산 값입니다.</p>
                   </div>
                   <div className="rounded-2xl bg-sky-500/10 px-3 py-2 text-sm font-semibold text-sky-300">실데이터</div>
                 </div>
