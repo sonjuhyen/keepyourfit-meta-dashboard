@@ -9,7 +9,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <style>
-    body { background:#081018; }
+    body { background: #081018; }
     .glass { background: rgba(15, 23, 42, 0.72); backdrop-filter: blur(14px); }
     .grid-pattern {
       background-image:
@@ -22,34 +22,133 @@
 <body class="text-white">
   <div id="root"></div>
   <script type="text/babel">
-    const kpis = [
-      { label: '최근 7일 광고비', value: '22,694,420원', change: '+12.4%', positive: false },
-      { label: '최근 7일 구매수', value: '148건', change: '+18.2%', positive: true },
-      { label: '최근 7일 구매금액', value: '65,120,000원', change: '+21.7%', positive: true },
-      { label: '최근 7일 ROAS', value: '2.87', change: '+8.9%', positive: true },
-      { label: '최근 7일 CPA', value: '153,341원', change: '-7.1%', positive: true },
-      { label: '최근 7일 CTR', value: '1.42%', change: '+0.13%p', positive: true }
+    const SHEET_CONFIG = {
+      weeklyCsvUrl: '',
+      dailyCsvUrl: ''
+    };
+
+    const sampleWeekly = [
+      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '1', campaign_name: '신규고객 구매 전환', objective: '구매', spend: 8240000, impressions: 215000, reach: 154000, clicks: 4210, inline_link_clicks: 3390, purchase_count: 64, purchase_value: 28110000, purchase_roas: 3.41, cpa_purchase: 128750 },
+      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '2', campaign_name: '리타겟팅 전환', objective: '구매', spend: 4910000, impressions: 109000, reach: 68400, clicks: 2360, inline_link_clicks: 1820, purchase_count: 53, purchase_value: 20230000, purchase_roas: 4.12, cpa_purchase: 92642 },
+      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '3', campaign_name: '퓨어타치온 관심사 확장', objective: '구매', spend: 5320000, impressions: 187000, reach: 131000, clicks: 2980, inline_link_clicks: 2140, purchase_count: 29, purchase_value: 11600000, purchase_roas: 2.18, cpa_purchase: 183448 },
+      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '4', campaign_name: '멜라라인 수면 테스트', objective: '트래픽', spend: 2760000, impressions: 144000, reach: 99200, clicks: 2490, inline_link_clicks: 2110, purchase_count: 11, purchase_value: 3420000, purchase_roas: 1.24, cpa_purchase: 250909 },
+      { week_start: '2026-04-11', week_end: '2026-04-17', campaign_id: '5', campaign_name: '올레샷 리마케팅', objective: '구매', spend: 1464420, impressions: 100655, reach: 81200, clicks: 1820, inline_link_clicks: 1390, purchase_count: 10, purchase_value: 4320000, purchase_roas: 2.95, cpa_purchase: 146442 }
     ];
 
-    const campaigns = [
-      { name: '신규고객 구매 전환', objective: '구매', spend: '8,240,000', roas: '3.41', cpa: '128,000', status: '증액 후보' },
-      { name: '리타겟팅 전환', objective: '구매', spend: '4,910,000', roas: '4.12', cpa: '92,000', status: '유지' },
-      { name: '퓨어타치온 관심사 확장', objective: '구매', spend: '5,320,000', roas: '2.18', cpa: '181,000', status: '점검 필요' },
-      { name: '멜라라인 수면 테스트', objective: '트래픽', spend: '2,760,000', roas: '1.24', cpa: '246,000', status: '중단 후보' },
-      { name: '올레샷 리마케팅', objective: '구매', spend: '1,464,420', roas: '2.95', cpa: '139,000', status: '유지' }
+    const sampleDaily = [
+      { date: '2026-04-11', spend: 2800000, purchase_value: 7100000, purchase_count: 21, ctr: 1.31, cpa_purchase: 133333 },
+      { date: '2026-04-12', spend: 3150000, purchase_value: 8890000, purchase_count: 24, ctr: 1.38, cpa_purchase: 131250 },
+      { date: '2026-04-13', spend: 2960000, purchase_value: 8020000, purchase_count: 19, ctr: 1.29, cpa_purchase: 155789 },
+      { date: '2026-04-14', spend: 3320000, purchase_value: 9460000, purchase_count: 22, ctr: 1.41, cpa_purchase: 150909 },
+      { date: '2026-04-15', spend: 3480000, purchase_value: 10450000, purchase_count: 25, ctr: 1.46, cpa_purchase: 139200 },
+      { date: '2026-04-16', spend: 3920000, purchase_value: 11800000, purchase_count: 28, ctr: 1.52, cpa_purchase: 140000 },
+      { date: '2026-04-17', spend: 3264420, purchase_value: 9400000, purchase_count: 21, ctr: 1.42, cpa_purchase: 155448 }
     ];
 
-    const trend = [42, 55, 48, 61, 58, 72, 69];
-    const roasTrend = [2.1, 2.4, 2.2, 2.8, 2.6, 3.1, 2.9];
-    const dates = ['4/11', '4/12', '4/13', '4/14', '4/15', '4/16', '4/17'];
+    function parseCsv(text) {
+      const lines = text.trim().split(/\r?\n/);
+      if (!lines.length) return [];
+      const headers = splitCsvLine(lines[0]);
+      return lines.slice(1).map(line => {
+        const values = splitCsvLine(line);
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] ?? '';
+        });
+        return row;
+      });
+    }
 
-    function LineChart({ data, color = '#22c55e', fill = 'rgba(34,197,94,0.12)', max }) {
+    function splitCsvLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      result.push(current);
+      return result;
+    }
+
+    function toNumber(value) {
+      const num = Number(String(value || '').replace(/,/g, ''));
+      return Number.isFinite(num) ? num : 0;
+    }
+
+    function formatNumber(value) {
+      return new Intl.NumberFormat('ko-KR').format(Math.round(value || 0));
+    }
+
+    function formatCurrency(value) {
+      return formatNumber(value) + '원';
+    }
+
+    function formatRate(value, digits = 2) {
+      return Number(value || 0).toFixed(digits);
+    }
+
+    function getStatus(row) {
+      const roas = toNumber(row.purchase_roas);
+      const cpa = toNumber(row.cpa_purchase);
+      const spend = toNumber(row.spend);
+      const purchases = toNumber(row.purchase_count);
+
+      if (roas >= 3 && purchases >= 10) return '증액 후보';
+      if (roas >= 2) return '유지';
+      if (spend >= 2000000 && purchases <= 3) return '중단 후보';
+      return '점검 필요';
+    }
+
+    function buildKpis(weeklyRows, dailyRows) {
+      const totalSpend = weeklyRows.reduce((sum, row) => sum + toNumber(row.spend), 0);
+      const totalPurchases = weeklyRows.reduce((sum, row) => sum + toNumber(row.purchase_count), 0);
+      const totalPurchaseValue = weeklyRows.reduce((sum, row) => sum + toNumber(row.purchase_value), 0);
+      const totalClicks = weeklyRows.reduce((sum, row) => sum + toNumber(row.inline_link_clicks), 0);
+      const totalImpressions = weeklyRows.reduce((sum, row) => sum + toNumber(row.impressions), 0);
+      const roas = totalSpend ? totalPurchaseValue / totalSpend : 0;
+      const cpa = totalPurchases ? totalSpend / totalPurchases : 0;
+      const ctr = totalImpressions ? (totalClicks / totalImpressions) * 100 : 0;
+
+      return [
+        { label: '최근 7일 광고비', value: formatCurrency(totalSpend), change: '실데이터', positive: true },
+        { label: '최근 7일 구매수', value: formatNumber(totalPurchases) + '건', change: '실데이터', positive: true },
+        { label: '최근 7일 구매금액', value: formatCurrency(totalPurchaseValue), change: '실데이터', positive: true },
+        { label: '최근 7일 ROAS', value: formatRate(roas), change: '실데이터', positive: true },
+        { label: '최근 7일 CPA', value: formatCurrency(cpa), change: '실데이터', positive: true },
+        { label: '최근 7일 CTR', value: formatRate(ctr) + '%', change: '실데이터', positive: true }
+      ];
+    }
+
+    function buildTrend(dailyRows) {
+      return dailyRows.map(row => ({
+        date: row.date || row.week_start || '',
+        spend: toNumber(row.spend),
+        purchaseValue: toNumber(row.purchase_value),
+        roas: toNumber(row.spend) ? toNumber(row.purchase_value) / toNumber(row.spend) : 0
+      }));
+    }
+
+    function LineChart({ data, color = '#22c55e', fill = 'rgba(34,197,94,0.12)', max, valueKey }) {
+      const values = data.map(item => item[valueKey]);
       const width = 560;
       const height = 220;
       const padding = 22;
-      const chartMax = max || Math.max(...data) * 1.15;
-      const points = data.map((v, i) => {
-        const x = padding + (i * (width - padding * 2)) / (data.length - 1);
+      const chartMax = max || Math.max(...values, 1) * 1.15;
+      const points = values.map((v, i) => {
+        const x = padding + (i * (width - padding * 2)) / Math.max(values.length - 1, 1);
         const y = height - padding - ((v / chartMax) * (height - padding * 2));
         return [x, y];
       });
@@ -57,7 +156,7 @@
       const areaPath = `${linePath} L ${points[points.length - 1][0]} ${height - padding} L ${points[0][0]} ${height - padding} Z`;
       return (
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-56">
-          {[0,1,2,3].map(i => {
+          {[0, 1, 2, 3].map(i => {
             const y = padding + ((height - padding * 2) / 4) * i;
             return <line key={i} x1={padding} y1={y} x2={width - padding} y2={y} stroke="rgba(148,163,184,0.18)" strokeDasharray="4 6" />;
           })}
@@ -75,10 +174,54 @@
         '점검 필요': 'bg-amber-500/15 text-amber-300 border-amber-400/30',
         '중단 후보': 'bg-rose-500/15 text-rose-300 border-rose-400/30'
       };
-      return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${styles[status]}`}>{status}</span>;
+      return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${styles[status] || styles['점검 필요']}`}>{status}</span>;
     }
 
     function App() {
+      const [weeklyRows, setWeeklyRows] = React.useState(sampleWeekly);
+      const [dailyRows, setDailyRows] = React.useState(sampleDaily);
+      const [loading, setLoading] = React.useState(false);
+      const [error, setError] = React.useState('');
+
+      React.useEffect(() => {
+        async function loadData() {
+          if (!SHEET_CONFIG.weeklyCsvUrl || !SHEET_CONFIG.dailyCsvUrl) return;
+          try {
+            setLoading(true);
+            const [weeklyRes, dailyRes] = await Promise.all([
+              fetch(SHEET_CONFIG.weeklyCsvUrl),
+              fetch(SHEET_CONFIG.dailyCsvUrl)
+            ]);
+            const [weeklyText, dailyText] = await Promise.all([weeklyRes.text(), dailyRes.text()]);
+            setWeeklyRows(parseCsv(weeklyText));
+            setDailyRows(parseCsv(dailyText));
+          } catch (e) {
+            setError('실데이터를 불러오지 못해 샘플 데이터로 표시 중입니다.');
+          } finally {
+            setLoading(false);
+          }
+        }
+        loadData();
+      }, []);
+
+      const trendRows = buildTrend(dailyRows);
+      const kpis = buildKpis(weeklyRows, dailyRows);
+      const dates = trendRows.map(row => row.date.slice(5).replace('-', '/'));
+      const campaigns = weeklyRows
+        .map(row => ({
+          name: row.campaign_name,
+          objective: row.objective,
+          spend: formatCurrency(toNumber(row.spend)),
+          roas: formatRate(toNumber(row.purchase_roas)),
+          cpa: formatCurrency(toNumber(row.cpa_purchase)),
+          status: getStatus(row)
+        }))
+        .sort((a, b) => Number(b.roas) - Number(a.roas));
+
+      const topCandidates = campaigns.filter(c => c.status === '증액 후보').slice(0, 2);
+      const keepCandidates = campaigns.filter(c => c.status === '점검 필요').slice(0, 1);
+      const stopCandidates = campaigns.filter(c => c.status === '중단 후보').slice(0, 1);
+
       return (
         <div className="min-h-screen bg-slate-950 text-white grid-pattern">
           <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur">
@@ -86,7 +229,7 @@
               <div>
                 <p className="text-sm font-medium text-emerald-300">킵유어핏 퍼포먼스 운영판</p>
                 <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">메타 광고 웹 대시보드</h1>
-                <p className="mt-2 max-w-2xl text-sm text-slate-300">광고비, 구매, ROAS 흐름을 한 화면에서 보고 증액, 유지, 점검 액션까지 바로 판단하는 구조입니다.</p>
+                <p className="mt-2 max-w-2xl text-sm text-slate-300">실데이터 기반 최근 7일 캠페인 성과를 한 화면에서 보고 증액, 유지, 점검 액션까지 바로 판단하는 구조입니다.</p>
               </div>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="glass rounded-2xl border border-white/10 px-4 py-3">
@@ -99,19 +242,21 @@
                 </div>
                 <div className="glass rounded-2xl border border-white/10 px-4 py-3">
                   <div className="text-xs text-slate-400">업데이트</div>
-                  <div className="mt-1 font-semibold">오늘 08:12</div>
+                  <div className="mt-1 font-semibold">시트 기준 실시간</div>
                 </div>
                 <div className="glass rounded-2xl border border-white/10 px-4 py-3">
                   <div className="text-xs text-slate-400">상태</div>
-                  <div className="mt-1 font-semibold text-emerald-300">자동 수집 정상</div>
+                  <div className="mt-1 font-semibold text-emerald-300">{loading ? '불러오는 중' : '실데이터 반영'}</div>
                 </div>
               </div>
             </div>
           </header>
 
           <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            {error && <div className="mb-6 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">{error}</div>}
+
             <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-              {kpis.map((item) => (
+              {kpis.map(item => (
                 <article key={item.label} className="glass rounded-3xl border border-white/10 p-5 shadow-2xl shadow-black/20 transition hover:border-emerald-400/30">
                   <p className="text-sm text-slate-400">{item.label}</p>
                   <p className="mt-3 text-2xl font-bold tracking-tight">{item.value}</p>
@@ -125,12 +270,12 @@
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold">최근 7일 광고비 추이</h2>
-                    <p className="mt-1 text-sm text-slate-400">광고비 증감과 집행 페이스를 먼저 확인하는 구간입니다.</p>
+                    <p className="mt-1 text-sm text-slate-400">일별 spend 기준 실데이터 추이입니다.</p>
                   </div>
-                  <div className="rounded-2xl bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300">전주 대비 +12.4%</div>
+                  <div className="rounded-2xl bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-300">실데이터</div>
                 </div>
                 <div className="mt-6">
-                  <LineChart data={trend} color="#34d399" fill="rgba(52,211,153,0.12)" max={80} />
+                  <LineChart data={trendRows} valueKey="spend" color="#34d399" fill="rgba(52,211,153,0.12)" />
                 </div>
                 <div className="mt-4 grid grid-cols-7 gap-2 text-center text-xs text-slate-400">
                   {dates.map(d => <div key={d}>{d}</div>)}
@@ -141,12 +286,12 @@
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h2 className="text-xl font-bold">최근 7일 ROAS 추이</h2>
-                    <p className="mt-1 text-sm text-slate-400">효율이 좋아졌는지, 단순히 광고비가 늘어난 건지 구분합니다.</p>
+                    <p className="mt-1 text-sm text-slate-400">일별 purchase_value / spend 기준입니다.</p>
                   </div>
-                  <div className="rounded-2xl bg-sky-500/10 px-3 py-2 text-sm font-semibold text-sky-300">현재 2.87</div>
+                  <div className="rounded-2xl bg-sky-500/10 px-3 py-2 text-sm font-semibold text-sky-300">실데이터</div>
                 </div>
                 <div className="mt-6">
-                  <LineChart data={roasTrend} color="#60a5fa" fill="rgba(96,165,250,0.12)" max={3.6} />
+                  <LineChart data={trendRows} valueKey="roas" color="#60a5fa" fill="rgba(96,165,250,0.12)" />
                 </div>
                 <div className="mt-4 grid grid-cols-7 gap-2 text-center text-xs text-slate-400">
                   {dates.map(d => <div key={d}>{d}</div>)}
@@ -158,29 +303,28 @@
               <article className="glass rounded-3xl border border-emerald-400/20 p-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-emerald-300">증액 후보</h3>
-                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">2건</span>
+                  <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-300">{topCandidates.length}건</span>
                 </div>
                 <ul className="mt-4 space-y-4 text-sm text-slate-300">
-                  <li className="rounded-2xl bg-white/5 p-4"><strong className="text-white">신규고객 구매 전환</strong><br/>ROAS 3.41, CPA 안정적. 예산 추가 여지 있음.</li>
-                  <li className="rounded-2xl bg-white/5 p-4"><strong className="text-white">리타겟팅 전환</strong><br/>구매 효율이 가장 안정적이라 유지 이상 판단 가능.</li>
+                  {topCandidates.map(item => <li key={item.name} className="rounded-2xl bg-white/5 p-4"><strong className="text-white">{item.name}</strong><br/>ROAS {item.roas}, CPA {item.cpa}. 성과가 안정적입니다.</li>)}
                 </ul>
               </article>
               <article className="glass rounded-3xl border border-amber-400/20 p-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-amber-300">점검 필요</h3>
-                  <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">1건</span>
+                  <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-300">{keepCandidates.length}건</span>
                 </div>
                 <ul className="mt-4 space-y-4 text-sm text-slate-300">
-                  <li className="rounded-2xl bg-white/5 p-4"><strong className="text-white">퓨어타치온 관심사 확장</strong><br/>유입은 있으나 구매 전환이 약해 메시지, 랜딩, 타겟 점검 필요.</li>
+                  {keepCandidates.map(item => <li key={item.name} className="rounded-2xl bg-white/5 p-4"><strong className="text-white">{item.name}</strong><br/>유입 대비 전환 효율 점검이 필요합니다.</li>)}
                 </ul>
               </article>
               <article className="glass rounded-3xl border border-rose-400/20 p-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-rose-300">중단 후보</h3>
-                  <span className="rounded-full bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-300">1건</span>
+                  <span className="rounded-full bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-300">{stopCandidates.length}건</span>
                 </div>
                 <ul className="mt-4 space-y-4 text-sm text-slate-300">
-                  <li className="rounded-2xl bg-white/5 p-4"><strong className="text-white">멜라라인 수면 테스트</strong><br/>광고비 대비 구매 성과가 약해 구조 재정비 전까지 축소 권장.</li>
+                  {stopCandidates.map(item => <li key={item.name} className="rounded-2xl bg-white/5 p-4"><strong className="text-white">{item.name}</strong><br/>광고비 대비 구매 효율이 낮습니다.</li>)}
                 </ul>
               </article>
             </section>
@@ -189,15 +333,13 @@
               <article className="glass overflow-hidden rounded-3xl border border-white/10">
                 <div className="border-b border-white/10 px-6 py-5">
                   <h2 className="text-xl font-bold">캠페인 성과 테이블</h2>
-                  <p className="mt-1 text-sm text-slate-400">대표님이 바로 증액, 유지, 점검 판단할 수 있게 캠페인별 핵심 값만 모았습니다.</p>
+                  <p className="mt-1 text-sm text-slate-400">weekly_campaign_summary 기준 실데이터입니다.</p>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-sm">
                     <thead className="bg-white/5 text-slate-300">
                       <tr>
-                        {['캠페인명', '목적', '광고비', 'ROAS', 'CPA', '상태'].map(h => (
-                          <th key={h} className="px-6 py-4 font-semibold">{h}</th>
-                        ))}
+                        {['캠페인명', '목적', '광고비', 'ROAS', 'CPA', '상태'].map(h => <th key={h} className="px-6 py-4 font-semibold">{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -220,16 +362,16 @@
                 <h2 className="text-xl font-bold">운영 메모</h2>
                 <div className="mt-5 space-y-4 text-sm text-slate-300">
                   <div className="rounded-2xl bg-white/5 p-4">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">이번 주 핵심 관찰</div>
-                    <p className="mt-2">신규고객 구매 캠페인이 가장 높은 매출 기여를 만들고 있습니다. 클릭 효율보다 구매 효율 개선 폭이 더 컸습니다.</p>
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">현재 상태</div>
+                    <p className="mt-2">최근 6개월 데이터 백필이 완료되어 지금 화면은 샘플이 아닌 실데이터 중심 구조로 전환 준비가 된 상태입니다.</p>
                   </div>
                   <div className="rounded-2xl bg-white/5 p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">다음 액션</div>
-                    <p className="mt-2">퓨어타치온은 후킹 문구를 분리 테스트하고, 멜라라인은 트래픽 목적 예산을 구매 목적 구조로 재배치하는 안을 검토합니다.</p>
+                    <p className="mt-2">공개 CSV 연결만 마치면 GitHub Pages 대시보드가 실데이터 기준으로 자동 반영됩니다.</p>
                   </div>
                   <div className="rounded-2xl bg-white/5 p-4">
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">확장 예정</div>
-                    <p className="mt-2">상품별 키워드, 광고세트 퍼널, 소재 문구 성과까지 붙이면 다음 버전에서 더 정확한 운영 판단이 가능합니다.</p>
+                    <p className="mt-2">이후 상품별 키워드, 광고세트 퍼널, 소재 메시지 분석 기능을 순차적으로 추가하면 됩니다.</p>
                   </div>
                 </div>
               </article>
