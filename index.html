@@ -46,7 +46,8 @@
     ];
 
     function parseCsv(text) {
-      const lines = text.trim().split(/\r?\n/);
+      const cleaned = text.replace(/^\ufeff/, '');
+      const lines = cleaned.trim().split(/\r?\n/);
       if (!lines.length) return [];
       const headers = splitCsvLine(lines[0]);
       return lines.slice(1).map(line => {
