@@ -142,7 +142,8 @@
         date: row.date || '',
         spend: toNumber(row.spend_sum || row.spend),
         purchaseValue: toNumber(row.purchase_value_sum || row.purchase_value),
-        roas: toNumber(row.roas_calc || 0)
+        roas: toNumber(row.roas_calc || 0),
+        roasPercentLabel: formatRoasPercent(toNumber(row.roas_calc || 0))
       }));
     }
 
@@ -293,7 +294,7 @@
                     <h2 className="text-xl font-bold">최근 7일 ROAS 추이</h2>
                     <p className="mt-1 text-sm text-slate-400">daily_total_summary 기준 일자별 ROAS 재계산 값입니다.</p>
                   </div>
-                  <div className="rounded-2xl bg-sky-500/10 px-3 py-2 text-sm font-semibold text-sky-300">실데이터</div>
+                  <div className="rounded-2xl bg-sky-500/10 px-3 py-2 text-sm font-semibold text-sky-300">% 기준 실데이터</div>
                 </div>
                 <div className="mt-6">
                   <LineChart data={trendRows} valueKey="roas" color="#60a5fa" fill="rgba(96,165,250,0.12)" />
